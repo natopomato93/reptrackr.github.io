@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RepTrakr</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0612">
+<meta name="description" content="Drag-and-drop day planner with a neon nightlife vibe.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RepTrakr">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0612;
+    --bg2:#120a1f;
+    --panel:#170d29;
+    --panel2:#1d1033;
+    --line:rgba(255,46,196,0.18);
+    --pink:#ff2ec4;
+    --cyan:#05f2ff;
+    --yellow:#d4ff00;
+    --purple:#9b30ff;
+    --text:#efe6ff;
+    --text-dim:#9885b8;
+    --text-dimmer:#5f4d7a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -5%, rgba(255,46,196,0.14), transparent 60%),
+      radial-gradient(ellipse 900px 500px at 90% 10%, rgba(5,242,255,0.10), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Space Grotesk',sans-serif;
+    min-height:100vh;
+  }
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--pink);border-radius:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  .wrap{max-width:1400px;margin:0 auto;padding:28px 28px 80px;}
+
+  header.top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:8px;}
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand h1{
+    font-family:'Audiowide',cursive;
+    font-size:38px;
+    margin:0;
+    letter-spacing:2px;
+    color:var(--pink);
+    text-shadow:0 0 6px var(--pink),0 0 18px rgba(255,46,196,0.6),0 0 40px rgba(255,46,196,0.25);
+    animation:flicker 5.5s infinite;
+  }
+  .brand h1 span{color:var(--cyan);text-shadow:0 0 6px var(--cyan),0 0 18px rgba(5,242,255,0.6),0 0 40px rgba(5,242,255,0.25);}
+  @keyframes flicker{
+    0%,3%,5%,7%,9%,100%{opacity:1;}
+    4%{opacity:0.4;}
+    6%{opacity:0.85;}
+    8%{opacity:0.55;}
+  }
+  .brand p{margin:0;color:var(--text-dim);font-size:13px;letter-spacing:0.5px;}
+
+  .status-pill{
+    display:flex;align-items:center;gap:10px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:8px 14px;border-radius:999px;
+    font-size:12.5px;color:var(--text-dim);
+  }
+  .status-pill b{color:var(--yellow);font-weight:600;}
+  .toggle-pro{
+    display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;
+  }
+  .switch{width:36px;height:20px;border-radius:999px;background:#2a1b42;border:1px solid var(--line);position:relative;transition:.2s;}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text-dim);transition:.2s;}
+  .switch.on{background:rgba(212,255,0,0.15);border-color:var(--yellow);}
+  .switch.on::after{left:18px;background:var(--yellow);box-shadow:0 0 8px var(--yellow);}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 24px;}
+  .btn{
+    font-family:'Space Grotesk',sans-serif;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:9px 16px;border-radius:8px;
+    font-size:13px;font-weight:500;
+    cursor:pointer;
+    display:flex;align-items:center;gap:8px;
+    transition:.15s;
+  }
+  .btn:hover{border-color:var(--cyan);box-shadow:0 0 12px rgba(5,242,255,0.35);color:var(--cyan);}
+  .btn.accent{border-color:var(--pink);color:var(--pink);}
+  .btn.accent:hover{box-shadow:0 0 14px rgba(255,46,196,0.45);}
+  .btn svg{width:15px;height:15px;flex:none;}
+  input[type=file]{display:none;}
+
+  .layout{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start;}
+  @media(max-width:920px){.layout{grid-template-columns:1fr;}}
+
+  .panel{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+  }
+  .panel h2{
+    margin:0 0 14px;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--text-dim);font-weight:600;
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel h2::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--pink);box-shadow:0 0 8px var(--pink);}
+
+  .tile-lib{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .lib-tile{
+    display:flex;align-items:center;gap:10px;
+    background:var(--bg2);
+    border:1px solid var(--line);
+    border-left:4px solid var(--tc,var(--pink));
+    border-radius:8px;
+    padding:9px 10px;
+    cursor:grab;
+    font-size:13.5px;font-weight:500;
+    position:relative;
+  }
+  .lib-tile:active{cursor:grabbing;}
+  .lib-tile:hover{box-shadow:0 0 10px color-mix(in srgb, var(--tc,var(--pink)) 45%, transparent);}
+  .lib-tile .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lib-tile .icons{display:flex;gap:6px;opacity:0.6;}
+  .lib-tile .icons button{
+    background:none;border:none;color:var(--text-dim);cursor:pointer;
+    width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+    border-radius:4px;
+  }
+  .lib-tile .icons button:hover{color:var(--text);background:rgba(255,255,255,0.06);}
+  .lib-tile .icons svg{width:13px;height:13px;}
+
+  .new-tile-form{
+    border:1px dashed var(--line);
+    border-radius:8px;
+    padding:12px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .new-tile-form input[type=text]{
+    background:var(--bg2);border:1px solid var(--line);color:var(--text);
+    border-radius:6px;padding:8px 10px;font-family:inherit;font-size:13px;
+  }
+  .new-tile-form input[type=text]:focus{outline:none;border-color:var(--cyan);}
+  .swatches{display:flex;gap:7px;flex-wrap:wrap;}
+  .swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;}
+  .swatch.sel{border-color:#fff;box-shadow:0 0 8px currentColor;}
+  .form-row{display:flex;gap:8px;}
+  .form-row .btn{flex:1;justify-content:center;padding:7px;font-size:12.5px;}
+
+  .days-scroll{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;}
+  .day-col{
+    flex:0 0 200px;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);
+    border-radius:14px;
+    min-height:420px;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .day-col.dragover{border-color:var(--yellow);box-shadow:0 0 16px rgba(212,255,0,0.35);}
+  .day-head{
+    padding:12px 14px 10px;border-bottom:1px solid var(--line);
+  }
+  .day-head .dnum{font-family:'Audiowide',cursive;font-size:13px;color:var(--cyan);letter-spacing:1px;}
+  .day-head .ddate{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+  .day-body{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:120px;}
+  .inst{
+    background:var(--bg2);
+    border:1px solid var(--line);
+    border-left:4px solid var(--tc,var(--pink));
+    border-radius:7px;
+    padding:8px 9px;
+    font-size:12.5px;font-weight:500;
+    display:flex;align-items:center;gap:6px;
+    cursor:grab;
+  }
+  .inst:active{cursor:grabbing;}
+  .inst .name{flex:1;}
+  .inst button{background:none;border:none;color:var(--text-dimmer);cursor:pointer;display:flex;padding:2px;}
+  .inst button:hover{color:var(--pink);}
+  .inst button svg{width:12px;height:12px;}
+  .empty-hint{color:var(--text-dimmer);font-size:11.5px;text-align:center;margin-top:20px;padding:0 8px;}
+
+  .locked{
+    position:relative;
+  }
+  .locked .day-body,.locked .day-head{filter:grayscale(1) brightness(0.5);pointer-events:none;}
+  .lock-overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    background:rgba(10,6,18,0.55);
+    text-align:center;padding:14px;
+  }
+  .lock-overlay svg{width:22px;height:22px;color:var(--purple);filter:drop-shadow(0 0 6px var(--purple));}
+  .lock-overlay p{margin:0;font-size:11.5px;color:var(--text-dim);line-height:1.5;}
+  .lock-overlay button{
+    margin-top:2px;background:none;border:1px solid var(--purple);color:var(--purple);
+    padding:6px 12px;border-radius:999px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;
+  }
+  .lock-overlay button:hover{box-shadow:0 0 12px rgba(155,48,255,0.5);}
+
+  .trash-zone{
+    margin-top:16px;border:1px dashed var(--line);border-radius:12px;
+    padding:14px;display:flex;align-items:center;justify-content:center;gap:8px;
+    color:var(--text-dimmer);font-size:12.5px;
+  }
+  .trash-zone svg{width:16px;height:16px;}
+  .trash-zone.dragover{border-color:var(--pink);color:var(--pink);box-shadow:0 0 14px rgba(255,46,196,0.35);}
+
+  input[type=text].tile-edit{width:100%;}
+
+  .lib-tile,.inst{touch-action:none;}
+  .drag-ghost{
+    position:fixed;z-index:9999;pointer-events:none;
+    padding:9px 14px;border-radius:7px;font-size:12.5px;font-weight:500;
+    background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--tc,var(--pink));
+    color:var(--text);box-shadow:0 6px 22px rgba(0,0,0,0.55),0 0 14px color-mix(in srgb, var(--tc,var(--pink)) 40%, transparent);
+    transform:translate(-50%,-50%);
+    max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+
+  @media(max-width:640px){
+    .wrap{padding:18px 14px 60px;}
+    .brand h1{font-size:28px;}
+    header.top{flex-direction:column;}
+    .day-col{flex:0 0 168px;}
+    .toolbar .btn{flex:1;justify-content:center;font-size:12px;padding:10px 8px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>REP<span>TRAKR</span></h1>
+      <p>drag tiles onto your days &mdash; build the schedule, own the night</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="status-pill" id="statusPill"></div>
+      <div class="toggle-pro" id="proToggle">
+        <span style="font-size:12.5px;color:var(--text-dim);">Pro plan</span>
+        <div class="switch" id="proSwitch"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn accent" id="uploadBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      Upload Excel
+    </button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <button class="btn" id="downloadBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9m0 12l-4-4m4 4l4-4M4 7V5a2 2 0 012-2h12a2 2 0 012 2v2"/></svg>
+      Download Excel
+    </button>
+    <button class="btn" id="clearBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg>
+      Clear all days
+    </button>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Tile library</h2>
+      <div class="tile-lib" id="tileLib"></div>
+      <div class="new-tile-form">
+        <input type="text" id="newTileName" placeholder="New tile name" maxlength="24">
+        <div class="swatches" id="newSwatches"></div>
+        <button class="btn" id="addTileBtn" style="justify-content:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M12 5v14M5 12h14"/></svg>
+          Add tile
+        </button>
+      </div>
+      <div class="trash-zone" id="trashZone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg>
+        drop here to remove
+      </div>
+    </div>
+
+    <div class="panel" style="overflow:hidden;">
+      <h2>Your schedule</h2>
+      <div class="days-scroll" id="daysScroll"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NEON_COLORS = ['#ff2ec4','#05f2ff','#9b30ff','#d4ff00','#ff7a1a','#00e5a0','#ff0080','#3a7bff','#ffb347','#b892ff'];
+
+let tiles = [
+  {id:'t1', name:'Workout', color:'#ff2ec4'},
+  {id:'t2', name:'Cardio', color:'#05f2ff'},
+  {id:'t3', name:'Rest Day', color:'#9b30ff'},
+  {id:'t4', name:'Meal Prep', color:'#d4ff00'},
+  {id:'t5', name:'Sleep', color:'#3a7bff'},
+  {id:'t6', name:'Work', color:'#ff7a1a'},
+  {id:'t7', name:'Study', color:'#00e5a0'},
+  {id:'t8', name:'Social', color:'#ff0080'},
+  {id:'t9', name:'Errands', color:'#ffb347'},
+  {id:'t10', name:'Reading', color:'#b892ff'}
+];
+
+const TOTAL_DAYS = 14;
+const FREE_LIMIT = 3;
+let isPro = false;
+let schedule = {};
+for(let i=0;i<TOTAL_DAYS;i++) schedule[i] = [];
+let instCounter = 1;
+let selectedColor = NEON_COLORS[0];
+let dragPayload = null;
+let ghostEl = null;
+let currentHoverTarget = null;
+
+function makeDraggable(el, getPayload, getLabel, getColor){
+  el.addEventListener('pointerdown', e=>{
+    if(e.target.closest('button')) return;
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    let started = false;
+
+    function onMove(ev){
+      if(!started){
+        if(Math.abs(ev.clientX-startX) < 4 && Math.abs(ev.clientY-startY) < 4) return;
+        started = true;
+        dragPayload = getPayload();
+        ghostEl = document.createElement('div');
+        ghostEl.className = 'drag-ghost';
+        ghostEl.style.setProperty('--tc', getColor());
+        ghostEl.textContent = getLabel();
+        document.body.appendChild(ghostEl);
+      }
+      ghostEl.style.left = ev.clientX + 'px';
+      ghostEl.style.top = ev.clientY + 'px';
+      const under = document.elementFromPoint(ev.clientX, ev.clientY);
+      const zone = under && under.closest('.day-body, .trash-zone');
+      if(currentHoverTarget && currentHoverTarget !== zone){
+        currentHoverTarget.closest('.day-col')?.classList.remove('dragover');
+        currentHoverTarget.classList?.remove('dragover');
+      }
+      if(zone){
+        if(zone.classList.contains('day-body')) zone.closest('.day-col').classList.add('dragover');
+        else zone.classList.add('dragover');
+      }
+      currentHoverTarget = zone;
+    }
+
+    function onUp(ev){
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if(started){
+        const under = document.elementFromPoint(ev.clientX, ev.clientY);
+        const zone = under && under.closest('.day-body, .trash-zone');
+        if(zone && zone.classList.contains('day-body')){
+          handleDrop(parseInt(zone.dataset.day,10));
+        } else if(zone && zone.classList.contains('trash-zone')){
+          handleTrash();
+        }
+        document.querySelectorAll('.day-col.dragover, .trash-zone.dragover').forEach(x=>x.classList.remove('dragover'));
+        ghostEl?.remove();
+        ghostEl = null;
+        dragPayload = null;
+      }
+      currentHoverTarget = null;
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  });
+}
+
+function handleDrop(dayIdx){
+  if(!dragPayload) return;
+  if(dragPayload.type==='new'){
+    schedule[dayIdx].push({instId:'i'+(instCounter++), tileId: dragPayload.tileId});
+  } else if(dragPayload.type==='move'){
+    const inst = findInstAnywhere(dragPayload.instId);
+    if(!inst) return;
+    schedule[dragPayload.fromDay] = schedule[dragPayload.fromDay].filter(x=>x.instId!==dragPayload.instId);
+    schedule[dayIdx].push({instId: inst.instId, tileId: inst.tileId});
+  }
+  renderDays();
+}
+
+function handleTrash(){
+  if(dragPayload && dragPayload.type==='move'){
+    schedule[dragPayload.fromDay] = schedule[dragPayload.fromDay].filter(x=>x.instId!==dragPayload.instId);
+    renderDays();
+  }
+}
+
+function tileById(id){ return tiles.find(t=>t.id===id); }
+
+function dayLabel(i){
+  const d = new Date();
+  d.setDate(d.getDate()+i);
+  return d.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'});
+}
+
+function updateStatus(){
+  const pill = document.getElementById('statusPill');
+  if(isPro){
+    pill.innerHTML = '<b>PRO</b> &mdash; all 14 days unlocked';
+  } else {
+    pill.innerHTML = 'Free plan &mdash; <b>3 days</b> unlocked, upgrade for 14';
+  }
+}
+
+document.getElementById('proSwitch').addEventListener('click', ()=>{
+  isPro = !isPro;
+  document.getElementById('proSwitch').classList.toggle('on', isPro);
+  updateStatus();
+  renderDays();
+});
+
+function renderSwatches(){
+  const wrap = document.getElementById('newSwatches');
+  wrap.innerHTML = '';
+  NEON_COLORS.forEach(c=>{
+    const s = document.createElement('div');
+    s.className = 'swatch' + (c===selectedColor?' sel':'');
+    s.style.background = c;
+    s.style.color = c;
+    s.addEventListener('click', ()=>{ selectedColor = c; renderSwatches(); });
+    wrap.appendChild(s);
+  });
+}
+
+function renderTileLib(){
+  const lib = document.getElementById('tileLib');
+  lib.innerHTML = '';
+  tiles.forEach(tile=>{
+    const row = document.createElement('div');
+    row.className = 'lib-tile';
+    row.style.setProperty('--tc', tile.color);
+    makeDraggable(row,
+      ()=>({type:'new', tileId: tile.id}),
+      ()=>tile.name,
+      ()=>tile.color
+    );
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'name';
+    nameSpan.textContent = tile.name;
+
+    const icons = document.createElement('div');
+    icons.className = 'icons';
+    const editBtn = document.createElement('button');
+    editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    editBtn.title = 'Rename / recolor';
+    editBtn.addEventListener('click', ()=> startEditTile(tile, row));
+    const delBtn = document.createElement('button');
+    delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg>';
+    delBtn.title = 'Delete tile';
+    delBtn.addEventListener('click', ()=> deleteTile(tile.id));
+    icons.appendChild(editBtn);
+    icons.appendChild(delBtn);
+
+    row.appendChild(nameSpan);
+    row.appendChild(icons);
+    lib.appendChild(row);
+  });
+}
+
+function startEditTile(tile, row){
+  row.innerHTML = '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tile-edit';
+  input.value = tile.name;
+  input.maxLength = 24;
+  const swWrap = document.createElement('div');
+  swWrap.className = 'swatches';
+  swWrap.style.marginTop = '8px';
+  let editColor = tile.color;
+  NEON_COLORS.forEach(c=>{
+    const s = document.createElement('div');
+    s.className = 'swatch' + (c===editColor?' sel':'');
+    s.style.background = c; s.style.color = c;
+    s.addEventListener('click', ()=>{
+      editColor = c;
+      swWrap.querySelectorAll('.swatch').forEach(x=>x.classList.remove('sel'));
+      s.classList.add('sel');
+    });
+    swWrap.appendChild(s);
+  });
+  const btnRow = document.createElement('div');
+  btnRow.className = 'form-row';
+  btnRow.style.marginTop = '8px';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn'; saveBtn.textContent = 'Save';
+  saveBtn.addEventListener('click', ()=>{
+    tile.name = input.value.trim() || tile.name;
+    tile.color = editColor;
+    renderTileLib();
+    renderDays();
+  });
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn'; cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', renderTileLib);
+  btnRow.appendChild(saveBtn);
+  btnRow.appendChild(cancelBtn);
+
+  row.style.flexDirection = 'column';
+  row.style.alignItems = 'stretch';
+  row.appendChild(input);
+  row.appendChild(swWrap);
+  row.appendChild(btnRow);
+  input.focus();
+}
+
+function deleteTile(tileId){
+  tiles = tiles.filter(t=>t.id!==tileId);
+  Object.keys(schedule).forEach(d=>{
+    schedule[d] = schedule[d].filter(inst=>inst.tileId!==tileId);
+  });
+  renderTileLib();
+  renderDays();
+}
+
+document.getElementById('addTileBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('newTileName');
+  const name = input.value.trim();
+  if(!name) return;
+  const id = 't' + Date.now();
+  tiles.push({id, name, color: selectedColor});
+  input.value = '';
+  renderTileLib();
+});
+
+function renderDays(){
+  const scroll = document.getElementById('daysScroll');
+  scroll.innerHTML = '';
+  for(let i=0;i<TOTAL_DAYS;i++){
+    const locked = !isPro && i>=FREE_LIMIT;
+    const col = document.createElement('div');
+    col.className = 'day-col' + (locked ? ' locked':'');
+
+    const head = document.createElement('div');
+    head.className = 'day-head';
+    head.innerHTML = `<div class="dnum">DAY ${i+1}</div><div class="ddate">${dayLabel(i)}</div>`;
+    col.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'day-body';
+    body.dataset.day = i;
+
+    if(!schedule[i].length && !locked){
+      const hint = document.createElement('div');
+      hint.className = 'empty-hint';
+      hint.textContent = 'drag tiles here';
+      body.appendChild(hint);
+    }
+
+    schedule[i].forEach(inst=>{
+      const tile = tileById(inst.tileId);
+      if(!tile) return;
+      const card = document.createElement('div');
+      card.className = 'inst';
+      card.style.setProperty('--tc', tile.color);
+      card.draggable = false;
+      makeDraggable(card,
+        ()=>({type:'move', instId: inst.instId, fromDay: i}),
+        ()=>tile.name,
+        ()=>tile.color
+      );
+      const nm = document.createElement('span');
+      nm.className = 'name';
+      nm.textContent = tile.name;
+      const rm = document.createElement('button');
+      rm.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+      rm.addEventListener('click', ()=>{
+        schedule[i] = schedule[i].filter(x=>x.instId!==inst.instId);
+        renderDays();
+      });
+      card.appendChild(nm);
+      card.appendChild(rm);
+      body.appendChild(card);
+    });
+
+    col.appendChild(body);
+
+    if(locked){
+      const overlay = document.createElement('div');
+      overlay.className = 'lock-overlay';
+      overlay.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+        <p>Locked on free plan.<br>Pro plans up to 14 days out.</p>
+        <button>Go Pro</button>
+      `;
+      overlay.querySelector('button').addEventListener('click', ()=>{
+        isPro = true;
+        document.getElementById('proSwitch').classList.add('on');
+        updateStatus();
+        renderDays();
+      });
+      col.appendChild(overlay);
+    }
+
+    scroll.appendChild(col);
+  }
+}
+
+function findInstAnywhere(instId){
+  for(const d of Object.keys(schedule)){
+    const found = schedule[d].find(x=>x.instId===instId);
+    if(found) return found;
+  }
+  return null;
+}
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  for(let i=0;i<TOTAL_DAYS;i++) schedule[i] = [];
+  renderDays();
+});
+
+// Excel export
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  const rows = [['Day','Date','Tile','Color']];
+  for(let i=0;i<TOTAL_DAYS;i++){
+    if(!isPro && i>=FREE_LIMIT) continue;
+    schedule[i].forEach(inst=>{
+      const tile = tileById(inst.tileId);
+      if(!tile) return;
+      rows.push(['Day '+(i+1), dayLabel(i), tile.name, tile.color]);
+    });
+  }
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:10},{wch:16},{wch:20},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'RepTrakr Schedule');
+  XLSX.writeFile(wb, 'reptrakr-schedule.xlsx');
+});
+
+// Excel import
+document.getElementById('uploadBtn').addEventListener('click', ()=>{
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+      let startRow = 0;
+      if(rows[0] && typeof rows[0][0] === 'string' && rows[0][0].toLowerCase().includes('day')) startRow = 1;
+      for(let i=0;i<TOTAL_DAYS;i++) schedule[i] = [];
+      for(let r=startRow; r<rows.length; r++){
+        const row = rows[r];
+        if(!row || !row[0]) continue;
+        const dayMatch = String(row[0]).match(/\d+/);
+        if(!dayMatch) continue;
+        const dayIdx = parseInt(dayMatch[0],10) - 1;
+        if(dayIdx<0 || dayIdx>=TOTAL_DAYS) continue;
+        const tileName = (row[2] || row[1] || '').toString().trim();
+        if(!tileName) continue;
+        let tile = tiles.find(t=>t.name.toLowerCase()===tileName.toLowerCase());
+        if(!tile){
+          const color = (row[3] && /^#/.test(row[3])) ? row[3] : NEON_COLORS[tiles.length % NEON_COLORS.length];
+          tile = {id:'t'+Date.now()+Math.random().toString(16).slice(2), name: tileName, color};
+          tiles.push(tile);
+        }
+        schedule[dayIdx].push({instId:'i'+(instCounter++), tileId: tile.id});
+      }
+      renderTileLib();
+      renderDays();
+    }catch(err){
+      alert('Could not read that file. Make sure it\'s a valid .xlsx exported from RepTrakr or with Day / Date / Tile columns.');
+    }
+    document.getElementById('fileInput').value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+renderSwatches();
+renderTileLib();
+updateStatus();
+renderDays();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>{
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}
+
+</script>
+</body>
+</html>
